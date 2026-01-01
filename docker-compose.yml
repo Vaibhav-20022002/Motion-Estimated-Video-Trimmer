@@ -1,0 +1,51 @@
+services:
+  motion_cut:
+    container_name: "MotionCut"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: "me:v1"
+    env_file:
+      - config/motion_cut.env
+    environment:
+      - INPUT_FILE=${INPUT_FILE:-}
+
+    # CPU PINNING CONFIGURATION
+    # cpuset: "0,2,4,6,8"
+    cpuset: "0,2"
+
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          cpus: "2"
+          memory: 1G
+
+    networks:
+      - motion_cut_net
+
+    volumes:
+      - ./tmp:/input:ro # Input DVRs (read-only)
+      - ./output:/output:rw # Output processed DVRs
+      - ./config:/etc/mc/configs:ro # Config files
+
+    # Development mode: sleep infinity to allow exec into container
+    # Run manually: /usr/local/bin/motion_cut /input/$INPUT_FILE /output/$INPUT_FILE
+    # command: ["sleep", "infinity"]
+
+    # Override CMD to process input file (set INPUT_FILE env var)
+    # Example: INPUT_FILE=video.mp4 docker compose up
+    command: >
+      /bin/bash -c "
+        if [ -n \"$$INPUT_FILE\" ]; then
+          /usr/local/bin/motion_cut /input/$$INPUT_FILE /output/$$INPUT_FILE;
+        else
+          /usr/local/bin/motion_cut /input /output;
+        fi
+      "
+
+networks:
+  motion_cut_net:
+    driver: bridge
