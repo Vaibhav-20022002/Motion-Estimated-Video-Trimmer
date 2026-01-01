@@ -1,5 +1,5 @@
 /**
- * @file motion_vector_DVR_cutter.cc
+ * @file motion_vector_DVR_trimmer.cc
  * @brief Motion Vector DVR Optimization
  *
  * @attention
