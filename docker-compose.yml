@@ -1,12 +1,12 @@
 services:
-  motion_cut:
+  motion_trim:
     container_name: "MotionCut"
     build:
       context: .
       dockerfile: Dockerfile
     image: "me:v1"
     env_file:
-      - config/motion_cut.env
+      - config/motion_trim.env
     environment:
       - INPUT_FILE=${INPUT_FILE:-}
 
@@ -24,7 +24,7 @@ services:
           memory: 1G
 
     networks:
-      - motion_cut_net
+      - motion_trim_net
 
     volumes:
       - ./tmp:/input:ro # Input DVRs (read-only)
@@ -32,7 +32,7 @@ services:
       - ./config:/etc/mc/configs:ro # Config files
 
     # Development mode: sleep infinity to allow exec into container
-    # Run manually: /usr/local/bin/motion_cut /input/$INPUT_FILE /output/$INPUT_FILE
+    # Run manually: /usr/local/bin/motion_trim /input/$INPUT_FILE /output/$INPUT_FILE
     # command: ["sleep", "infinity"]
 
     # Override CMD to process input file (set INPUT_FILE env var)
@@ -40,12 +40,12 @@ services:
     command: >
       /bin/bash -c "
         if [ -n \"$$INPUT_FILE\" ]; then
-          /usr/local/bin/motion_cut /input/$$INPUT_FILE /output/$$INPUT_FILE;
+          /usr/local/bin/motion_trim /input/$$INPUT_FILE /output/$$INPUT_FILE;
         else
-          /usr/local/bin/motion_cut /input /output;
+          /usr/local/bin/motion_trim /input /output;
         fi
       "
 
 networks:
-  motion_cut_net:
+  motion_trim_net:
     driver: bridge

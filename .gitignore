@@ -13,6 +13,7 @@
 
 # Linker files
 *.ilk
+.clangd
 
 # Debugger Files
 *.pdb
@@ -39,3 +40,6 @@
 
 # debug information files
 *.dwo
+
+# Building artifacts
+build/

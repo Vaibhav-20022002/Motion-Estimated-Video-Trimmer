@@ -72,12 +72,16 @@ RUN git clone --depth 1 --branch 11.0.0 https://github.com/fmtlib/fmt.git /tmp/f
 
 # 9) Copy and compile the Motion Cut project
 WORKDIR /src
-COPY . .
+COPY CMakeLists.txt .
+COPY include/ include/
+COPY src/ src/
+COPY tools/ tools/
+COPY config/ config/
 
 RUN cmake -B build \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_C_COMPILER=clang-18 \
-      -DCMAKE_CXX_COMPILER=clang++-18 && \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER=clang-18 \
+    -DCMAKE_CXX_COMPILER=clang++-18 && \
     cmake --build build -j$(nproc)
 
 ############################ STAGE : 2 - The Final Image ############################
@@ -95,11 +99,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends software-proper
 # 2) Copy necessary assets from the builder stage
 COPY --from=builder /usr/local/lib/ /usr/local/lib/
 COPY --from=builder /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
-COPY --from=builder /src/build/motion_cut /usr/local/bin/motion_cut
+COPY --from=builder /src/build/motion_trim /usr/local/bin/motion_trim
 
 # 3) Create a directory for the configuration file with env & copy it
 RUN mkdir -p /etc/mc/configs
-COPY config/motion_cut.env /etc/mc/configs/motion_cut.env
+COPY config/motion_trim.env /etc/mc/configs/motion_trim.env
 
 # 4) Set up the runtime environment
 RUN ldconfig
