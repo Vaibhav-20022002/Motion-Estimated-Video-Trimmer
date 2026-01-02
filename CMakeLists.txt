@@ -15,9 +15,50 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Optimization flags for Release build
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native -flto")
+################################################################################
+# Build Type Specific Compiler Flags
+################################################################################
 
+# Release build flags: maximum optimization
+string(CONCAT CMAKE_CXX_FLAGS_RELEASE
+    "-O3 "
+    "-march=native "
+    "-mtune=native "
+    "-flto "
+    "-pipe "
+    "-DNDEBUG"
+)
+
+# Debug build flags: debugging symbols, no optimization
+string(CONCAT CMAKE_CXX_FLAGS_DEBUG
+    "-g "
+    "-O0 "
+    "-Wall "
+    "-Wextra "
+    "-pipe "
+    "-DDEBUG"
+)
+
+# RelWithDebInfo: optimized but with debug symbols
+string(CONCAT CMAKE_CXX_FLAGS_RELWITHDEBINFO
+    "-O2 "
+    "-g "
+    "-march=native "
+    "-pipe "
+    "-DNDEBUG"
+)
+
+# MinSizeRel: optimize for size
+string(CONCAT CMAKE_CXX_FLAGS_MINSIZEREL
+    "-Os "
+    "-pipe "
+    "-DNDEBUG"
+)
+
+# Print the active build type
+if(CMAKE_BUILD_TYPE)
+    message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+endif()
 ################################################################################
 # Dependencies
 ################################################################################
