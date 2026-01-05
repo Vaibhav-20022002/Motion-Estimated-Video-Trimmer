@@ -3,9 +3,9 @@
  * @brief Thread-safe task queue and result collection implementation
  *
  * @details Provides implementations for:
- * 
+ *
  *          - TaskQueue: Work-stealing queue for dynamic load balancing
- * 
+ *
  *          - ResultCollector: Thread-safe aggregator for scan results
  */
 

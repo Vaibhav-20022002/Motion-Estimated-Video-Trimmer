@@ -4,7 +4,7 @@
  *
  * @details Provides:
  *          - MemReaderState: State for custom FFmpeg I/O from memory buffer
- * 
+ *
  *          - MemoryLoader: File loading and FFmpeg I/O callbacks
  *
  */

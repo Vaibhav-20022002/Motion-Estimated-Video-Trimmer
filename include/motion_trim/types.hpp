@@ -5,17 +5,18 @@
  * @details Contains fundamental data structures used throughout the
  * application:
  *          - Cache alignment constants
- * 
+ *
  *          - I/O buffer sizing
- * 
+ *
  *          - TimeSegment for time ranges
- * 
+ *
  *          - ScanTask for work queue items
  */
 
 #ifndef MOTION_TRIM_TYPES_HPP
 #define MOTION_TRIM_TYPES_HPP
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 
@@ -50,6 +51,32 @@ constexpr size_t CACHE_LINE_SIZE = 64;
 struct alignas(16) TimeSegment {
   double start; //< Start time in seconds
   double end;   //< End time in seconds
+};
+
+/**
+ * @struct PaddedAtomic
+ * @brief Cache-line aligned atomic to prevent false sharing.
+ * @note When multiple atomics are updated by different threads, they
+ *       should each be on separate cache lines to avoid invalidation.
+ */
+template <typename T> struct alignas(CACHE_LINE_SIZE) PaddedAtomic {
+  std::atomic<T> value{0};
+
+  PaddedAtomic() = default;
+  explicit PaddedAtomic(T v) : value(v) {}
+
+  T load(std::memory_order order = std::memory_order_seq_cst) const {
+    return value.load(order);
+  }
+  void store(T v, std::memory_order order = std::memory_order_seq_cst) {
+    value.store(v, order);
+  }
+  T operator++() { return ++value; }
+  T operator++(int) { return value++; }
+  PaddedAtomic &operator+=(T v) {
+    value += v;
+    return *this;
+  }
 };
 
 /**

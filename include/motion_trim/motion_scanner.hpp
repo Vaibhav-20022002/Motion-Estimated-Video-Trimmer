@@ -7,7 +7,7 @@
  *
  * @attention THREAD MODEL:
  *            - Each worker thread creates its own MotionScanner instance.
- * 
+ *
  *            - This is necessary because FFmpeg decoder state is not
  *              thread-safe.
  *

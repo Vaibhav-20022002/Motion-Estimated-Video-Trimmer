@@ -6,12 +6,12 @@
  *          to detect significant motion in video frames.
  *
  * @attention OPTIMIZATIONS:
- * 
+ *
  *          - Config values cached in aligned struct (avoids function calls in
  *            hot loop)
- * 
+ *
  *          - Grid buffer pre-allocated (avoids malloc in hot loop)
- * 
+ *
  *          - Bounds checking for motion vectors (prevents segfaults)
  */
 
@@ -274,7 +274,7 @@ bool MotionScanner::check_frame(const AVFrame *f) {
   const int clust_need = cfg.clusters_needed;
   int clusters = 0;
 
-  // Scan grid for clusters (groups of adjacent active cells)
+  /// Scan grid for clusters (groups of adjacent active cells)
   for (int y = y_min; y < y_max; ++y) {
     const int row = y * gw;
     /// Start at x=1 and end at gw-1 to safely access neighbors
@@ -299,7 +299,7 @@ std::vector<double> MotionScanner::scan_range(double start, double end,
                                               long &seek_us, long &decode_us,
                                               long &analyze_us) {
   std::vector<double> ts;
-  ts.reserve(4'91'520); // Pre-allocate for typical chunk
+  ts.reserve(4'91'520); //< Pre-allocate for typical chunk
 
   /// OPTIMIZATION: Pre-compute time_base once (avoid per-frame calculation)
   const double time_base =

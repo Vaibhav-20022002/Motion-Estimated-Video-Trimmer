@@ -3,11 +3,11 @@
  * @brief Memory-based I/O for FFmpeg implementation
  *
  * @details Provides implementations for:
- * 
+ *
  *          - MemoryLoader::load_file - Load entire file into memory
- * 
+ *
  *          - MemoryLoader::read - FFmpeg read callback
- * 
+ *
  *          - MemoryLoader::seek - FFmpeg seek callback
  */
 

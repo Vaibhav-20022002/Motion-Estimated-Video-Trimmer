@@ -4,7 +4,7 @@
  *
  * @details Provides:
  *          - TaskQueue: Work-stealing queue for dynamic load balancing
- * 
+ *
  *          - ResultCollector: Thread-safe aggregator for scan results
  */
 

@@ -85,6 +85,9 @@ set(MOTION_CUT_SOURCES
     src/memory_io.cpp
     src/motion_scanner.cpp
     src/pipeline.cpp
+    src/batch_processor.cpp
+    src/ffmpeg_queue.cpp
+    src/ffmpeg_executor.cpp
 )
 
 # Create library for core functionality

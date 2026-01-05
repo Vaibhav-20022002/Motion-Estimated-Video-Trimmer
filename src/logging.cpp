@@ -4,7 +4,7 @@
  *
  * @details Provides static member definitions for:
  *          - Global log mutex
- * 
+ *
  *          - TimingCollector static members and methods
  */
 
