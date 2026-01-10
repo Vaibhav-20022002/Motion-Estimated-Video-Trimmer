@@ -5,6 +5,7 @@ A high-performance video processing tool that automatically removes static foota
 ## Features
 
 - **Motion Vector Analysis** - Uses H.264/HEVC motion vectors to detect activity (no pixel-level processing)
+- **Memory-Mapped I/O** - Zero-copy file loading with huge pages for maximum throughput
 - **Parallel Batch Processing** - Process multiple videos simultaneously with CPU isolation
 - **Producer-Consumer Architecture** - Parallel scanning with sequential FFmpeg writes
 - **Docker Deployment** - Easy containerized deployment with environment configuration
@@ -33,7 +34,7 @@ All settings are in `config/motion_trim.env`:
 | `MV_THRESHOLD` | 5 | Minimum motion magnitude to count |
 | `CLUSTERS_NEEDED` | 4 | Adjacent active blocks to trigger motion |
 | `MAX_GAP_SEC` | 5 | Max seconds between motion to keep |
-| `MIN_SAVINGS_PCT` | 10 | Minimum savings % to actually cut video |
+| `MIN_SAVINGS_PCT` | 10 | Minimum savings % to actually cut video (otherwise copies full video) |
 
 ## Architecture
 
@@ -54,7 +55,7 @@ All settings are in `config/motion_trim.env`:
 │                   └───────┬───────┘                         │
 │                           ↓                                 │
 │                   ┌───────────────┐                         │
-│                   │ FFmpeg Worker │                         │    
+│                   │ FFmpeg Worker │                         │
 │                   │   Sequential  │                         │
 │                   └───────────────┘                         │
 │                                                             │
@@ -66,11 +67,13 @@ All settings are in `config/motion_trim.env`:
 With 8 CPUs and 3 parallel streams:
 - **Wall-clock speedup**: ~2.75x faster than sequential
 - **CPU utilization**: Near 100% across all cores
+- **I/O Optimization**: Memory-mapped files with `MAP_POPULATE` and Transparent Huge Pages (THP)
+- **Build Optimization**: Automatic cache line size detection for optimal data alignment
 
 ## Technical Details
 
 ### Motion Detection Algorithm
-1. Decode video with FFmpeg (skip visual processing)
+1. Map video into RAM (zero-copy) and decode with FFmpeg (skip visual processing)
 2. Extract motion vectors from H.264/HEVC side data
 3. Map vectors to spatial grid (16x16 blocks)
 4. Detect clusters of adjacent active blocks
