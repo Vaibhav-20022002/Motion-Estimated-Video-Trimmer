@@ -89,18 +89,18 @@ void ProcessingPipeline::log_phase(const std::string &msg) {
 int ProcessingPipeline::run() {
   TIMER_START(total_run);
 
-  // **----- PHASE 0: LOAD FILE INTO RAM -----**
+  // **----- PHASE 0: MAP FILE INTO RAM -----**
 
-  log_phase("Loading RAM...");
+  log_phase("Mapping RAM...");
   if (!MemoryLoader::load_file(input_path, file_buffer)) {
     if (stream_id_ >= 0) {
-      LOG_ERROR("[Stream {}] Failed to load file: {}", stream_id_, input_path);
+      LOG_ERROR("[Stream {}] Failed to map file: {}", stream_id_, input_path);
     } else {
-      LOG_ERROR("Failed to load file: {}", input_path);
+      LOG_ERROR("Failed to map file: {}", input_path);
     }
     return 1;
   }
-  log_info(fmt::format("Loaded {} MB", file_buffer.size() / 1024 / 1024));
+  log_info(fmt::format("Mapped {} MB", file_buffer.size() / 1024 / 1024));
 
   // **----- PROBE VIDEO METADATA -----**
 
@@ -374,13 +374,32 @@ int ProcessingPipeline::run() {
   } else {
     if (stream_id_ >= 0) {
       LOG_WARN(
-          "[Stream {}] Savings too low ({}%). Min required: {}%. Skipping cut.",
+          "[Stream {}] Savings too low ({}%). Min required: {}%. Copying full stream.",
           stream_id_, static_cast<int>(saved_pct),
           static_cast<int>(Config::min_savings_pct()));
     } else {
-      LOG_WARN("Savings too low ({}%). Min required: {}%. Skipping cut.",
+      LOG_WARN("Savings too low ({}%). Min required: {}%. Copying full stream.",
                static_cast<int>(saved_pct),
                static_cast<int>(Config::min_savings_pct()));
+    }
+
+    /// Create a single segment covering the whole duration
+    std::vector<TimeSegment> full_copy_segment;
+    full_copy_segment.push_back({0.0, duration});
+
+    if (ffmpeg_queue_) {
+      /// Push to FFmpeg queue for deferred execution
+      FFmpegJob job;
+      job.stream_id = stream_id_;
+      job.input_path = std::filesystem::absolute(input_path).string();
+      job.output_path = output_path;
+      job.segments = full_copy_segment;
+      job.cpu_set = cpu_set_;
+      ffmpeg_queue_->push(std::move(job));
+      log_info("Pushed full-copy job to queue");
+    } else {
+      /// Execute immediately (single-file mode)
+      execute_cut(full_copy_segment);
     }
   }
 

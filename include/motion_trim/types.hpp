@@ -38,7 +38,12 @@ constexpr size_t AVIO_BUFFER_SIZE = 256 * 1024; //< 256KB
  *       Aligning hot data to cache lines prevents false sharing in
  *       multi-threaded code.
  */
-constexpr size_t CACHE_LINE_SIZE = 64;
+constexpr size_t CACHE_LINE_SIZE =
+#ifdef SYSTEM_CACHE_LINE_SIZE
+    SYSTEM_CACHE_LINE_SIZE;
+#else
+    64;
+#endif
 
 // **----- DATA STRUCTURES -----**
 

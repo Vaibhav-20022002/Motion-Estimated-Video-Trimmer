@@ -3,11 +3,11 @@
  * @brief Thread-safe FFmpeg job queue for producer-consumer pattern
  *
  * @details Enables parallel scanning with sequential FFmpeg execution:
- * 
+ *
  *          - Stream workers (producers) scan videos and push cut jobs
- * 
+ *
  *          - FFmpeg worker (consumer) executes jobs one at a time
- * 
+ *
  *          - Eliminates I/O contention while maintaining scan parallelism
  */
 
@@ -42,11 +42,11 @@ struct FFmpegJob {
  * @brief Thread-safe queue for FFmpeg jobs (producer-consumer pattern).
  *
  * @attention USAGE:
- * 
+ *
  *   - Stream workers call push() after scanning
- * 
+ *
  *   - FFmpeg worker calls pop() in a loop
- * 
+ *
  *   - Call finish() when all streams are done
  */
 class FFmpegQueue {

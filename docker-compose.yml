@@ -11,17 +11,17 @@ services:
       - INPUT_FILE=${INPUT_FILE:-}
 
     # CPU PINNING CONFIGURATION
-    # cpuset: "0,2,4,6,8"
-    cpuset: "0,2"
+    cpuset: "0,2,4,6,8,10,12,14"
+    # cpuset: "0,2"
 
     deploy:
       resources:
         limits:
-          cpus: "2"
-          memory: 1G
+          cpus: "8"
+          memory: 10G
         reservations:
-          cpus: "2"
-          memory: 1G
+          cpus: "8"
+          memory: 10G
 
     networks:
       - motion_trim_net

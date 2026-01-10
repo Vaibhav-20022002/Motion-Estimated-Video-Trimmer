@@ -29,8 +29,7 @@ extern "C" {
 
 namespace motion_trim {
 
-MotionScanner::MotionScanner(const std::vector<uint8_t> &data)
-    : file_data(data) {
+MotionScanner::MotionScanner(const MappedFile &data) : file_data(data) {
   frame = av_frame_alloc();
   pkt = av_packet_alloc();
 }

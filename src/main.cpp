@@ -36,6 +36,8 @@ int main(int argc, char *argv[]) {
   /// Disable stdout buffering for real-time log visibility
   std::setvbuf(stdout, nullptr, _IONBF, 0);
 
+  LOG_INFO("System Cache Line Size: {} bytes", CACHE_LINE_SIZE);
+
   if (argc < 3) {
     LOG_WARN("Usage: ./motion_trim <input> <output>");
     return 1;
@@ -71,7 +73,7 @@ int main(int argc, char *argv[]) {
     }
     std::sort(files.begin(), files.end());
 
-    if (files.empty()) {
+    if (files.empty() && !Config::watch_mode()) {
       LOG_WARN("No video files found in directory");
       return 0;
     }
@@ -81,7 +83,7 @@ int main(int argc, char *argv[]) {
     /// Process using BatchProcessor
     int num_streams = Config::parallel_streams(); // 0 = auto-detect
     BatchProcessor processor(num_streams);
-    return processor.process(files, output_arg);
+    return processor.process(files, output_arg, input_arg);
 
   } else {
 

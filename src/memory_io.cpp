@@ -4,7 +4,9 @@
  *
  * @details Provides implementations for:
  *
- *          - MemoryLoader::load_file - Load entire file into memory
+ *          - MappedFile: RAII wrapper for mmap
+ *
+ *          - MemoryLoader::load_file - Map file into memory
  *
  *          - MemoryLoader::read - FFmpeg read callback
  *
@@ -15,8 +17,10 @@
 
 #include <algorithm>
 #include <cstring>
-#include <fstream>
-#include <new>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 extern "C" {
 #include <libavformat/avio.h>
@@ -27,45 +31,101 @@ extern "C" {
 
 namespace motion_trim {
 
-bool MemoryLoader::load_file(const std::string &path,
-                             std::vector<uint8_t> &buffer) {
+// **---- MappedFile Implementation ----**
+
+MappedFile::~MappedFile() {
+  if (data_) {
+    munmap(data_, size_);
+  }
+  if (fd_ != -1) {
+    close(fd_);
+  }
+}
+
+MappedFile::MappedFile(MappedFile &&other) noexcept
+    : data_(other.data_), size_(other.size_), fd_(other.fd_) {
+  other.data_ = nullptr;
+  other.size_ = 0;
+  other.fd_ = -1;
+}
+
+MappedFile &MappedFile::operator=(MappedFile &&other) noexcept {
+  if (this != &other) {
+    if (data_) {
+      munmap(data_, size_);
+    }
+    if (fd_ != -1) {
+      close(fd_);
+    }
+    data_ = other.data_;
+    size_ = other.size_;
+    fd_ = other.fd_;
+
+    other.data_ = nullptr;
+    other.size_ = 0;
+    other.fd_ = -1;
+  }
+  return *this;
+}
+
+// **---- MemoryLoader Implementation ----**
+
+bool MemoryLoader::load_file(const std::string &path, MappedFile &file) {
   TIMER_START(load_file);
 
-  /// Open file and get size
-  std::ifstream file(path, std::ios::binary | std::ios::ate);
-  if (!file) {
+  /// Open file for reading
+  int fd = open(path.c_str(), O_RDONLY);
+  if (fd == -1) {
     LOG_ERROR("Failed to open file: {}", path);
     return false;
   }
 
-  std::streamsize size = file.tellg();
+  /// Get file size
+  struct stat sb;
+  if (fstat(fd, &sb) == -1) {
+    LOG_ERROR("Failed to stat file: {}", path);
+    close(fd);
+    return false;
+  }
 
   /// Validate file size
-  if (size <= 0) {
+  if (sb.st_size <= 0) {
     LOG_ERROR("File is empty or invalid: {}", path);
+    close(fd);
     return false;
   }
 
-  file.seekg(0, std::ios::beg);
-
-  /// CRITICAL: Catch allocation failures
-  ///\note This prevents crashes when file is larger than available RAM
-  try {
-    buffer.resize(static_cast<size_t>(size));
-  } catch (const std::bad_alloc &e) {
-    LOG_ERROR("Not enough RAM to load {} MB file! ({})", size / 1024 / 1024,
-              e.what());
+  /// Map file into memory (read-only, private copy-on-write)
+  ///\note MAP_PRIVATE ensures we don't modify the original file if we write
+  ///      (though we don't)
+  ///\note MAP_POPULATE forces the kernel to read the file into RAM immediately.
+  ///      This prevents page faults during scanning, ensuring 100% CPU usage.
+  void *addr =
+      mmap(nullptr, sb.st_size, PROT_READ, MAP_PRIVATE | MAP_POPULATE, fd, 0);
+  if (addr == MAP_FAILED) {
+    LOG_ERROR("Failed to mmap file: {}", path);
+    close(fd);
     return false;
   }
 
-  /// Read file into buffer
-  bool result = static_cast<bool>(
-      file.read(reinterpret_cast<char *>(buffer.data()), size));
+  /// Hint kernel that we will read sequentially and use huge pages
+  ///\note MADV_HUGEPAGE enables Transparent Huge Pages (THP) to reduce TLB
+  /// misses
+  ///\note MADV_SEQUENTIAL enables aggressive read-ahead
+  madvise(addr, sb.st_size, MADV_SEQUENTIAL | MADV_HUGEPAGE);
 
-  if (!result) {
-    LOG_ERROR("Failed to read file contents");
-    return false;
+  /// Clean up existing mapping if any
+  if (file.data_) {
+    munmap(file.data_, file.size_);
   }
+  if (file.fd_ != -1) {
+    close(file.fd_);
+  }
+
+  /// Transfer ownership to MappedFile
+  file.data_ = static_cast<uint8_t *>(addr);
+  file.size_ = static_cast<size_t>(sb.st_size);
+  file.fd_ = fd;
 
   TIMER_END(load_file);
   return true;

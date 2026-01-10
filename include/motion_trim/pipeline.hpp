@@ -38,6 +38,7 @@
 #include <string>
 #include <vector>
 
+#include "memory_io.hpp"
 #include "types.hpp"
 
 namespace motion_trim {
@@ -48,7 +49,7 @@ namespace motion_trim {
  *
  * @attention WORKFLOW:
  *
- * 1. Load video into RAM
+ * 1. Map video into RAM (zero-copy)
  *
  * 2. Probe video metadata (duration, fps)
  *
@@ -63,7 +64,7 @@ namespace motion_trim {
  * 7. Execute FFmpeg (pinned to cpu_set via taskset)
  */
 class ProcessingPipeline {
-  std::vector<uint8_t> file_buffer;
+  MappedFile file_buffer;
   std::string input_path;
   std::string output_path;
   double duration = 0;

@@ -32,27 +32,59 @@ struct alignas(CACHE_LINE_SIZE) MemReaderState {
 };
 
 /**
+ * @class MappedFile
+ * @brief RAII wrapper for memory-mapped files.
+ * @note Handles automatic cleanup (munmap/close) on destruction.
+ *       Supports move semantics but not copy.
+ */
+class MappedFile {
+public:
+  MappedFile() = default;
+  ~MappedFile();
+
+  /// Disable copy
+  MappedFile(const MappedFile &) = delete;
+  MappedFile &operator=(const MappedFile &) = delete;
+
+  /// Enable move
+  MappedFile(MappedFile &&other) noexcept;
+  MappedFile &operator=(MappedFile &&other) noexcept;
+
+  const uint8_t *data() const { return data_; }
+  size_t size() const { return size_; }
+  bool is_valid() const { return data_ != nullptr; }
+
+private:
+  friend class MemoryLoader;
+  uint8_t *data_ = nullptr;
+  size_t size_ = 0;
+  int fd_ = -1;
+};
+
+/**
  * @class MemoryLoader
  * @brief Handles loading video files into RAM and providing
  *       custom I/O callbacks for FFmpeg.
  *
  * @attention ROBUSTNESS:
  *
- * - Handles OOM gracefully with try-catch
+ * - Uses mmap for efficient file access (zero-copy)
  *
- * - Validates file size before allocation
+ * - Handles OOM gracefully (mmap failure)
+ *
+ * - Validates file size before mapping
  *
  * - Logs meaningful error messages
  */
 class MemoryLoader {
 public:
   /**
-   * @brief Load an entire file into a memory buffer.
+   * @brief Map an entire file into memory using mmap.
    * @param path Path to the file
-   * @param buffer Output buffer (will be resized)
+   * @param file Output MappedFile object (will take ownership of the mapping)
    * @return true on success, false on failure
    */
-  static bool load_file(const std::string &path, std::vector<uint8_t> &buffer);
+  static bool load_file(const std::string &path, MappedFile &file);
 
   /**
    * @brief FFmpeg read callback for custom I/O.

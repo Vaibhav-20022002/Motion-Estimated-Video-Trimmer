@@ -4,9 +4,9 @@
  *
  * @details Separate module for executing FFmpeg cut commands.
  *          Enables producer-consumer pattern where:
- * 
+ *
  *          - Stream workers scan and push jobs to queue
- * 
+ *
  *          - FFmpeg worker executes jobs sequentially
  */
 

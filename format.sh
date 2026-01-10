@@ -4,9 +4,9 @@
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 src_dir="$repo_root"
 
-cmd=(clang-format-20 --verbose -i)
+cmd=(clang-format-18 --verbose -i)
 if ! command -v "${cmd[0]}" >/dev/null 2>&1; then
-  echo "ERROR: clang-format-20 not found in PATH" >&2
+  echo "ERROR: clang-format-18 not found in PATH" >&2
   exit 2
 fi
 

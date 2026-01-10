@@ -93,7 +93,7 @@ class MotionScanner {
   } cfg;
 
   /// Reference to shared file buffer (not owned)
-  const std::vector<uint8_t> &file_data;
+  const MappedFile &file_data;
 
   /**
    * @brief Check if a frame contains significant motion.
@@ -110,7 +110,7 @@ public:
    * @brief Constructor: Allocate frame and packet structures.
    * @attention The actual decoder setup happens in initialize().
    */
-  explicit MotionScanner(const std::vector<uint8_t> &data);
+  explicit MotionScanner(const MappedFile &data);
 
   /**
    * @brief Destructor: Clean up all FFmpeg resources.

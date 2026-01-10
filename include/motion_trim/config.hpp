@@ -117,7 +117,7 @@ inline double target_fps() {
 
 /**
  * @brief Minimum savings percentage to trigger cutting
- * @note If savings are below this threshold, the cut is skipped
+ * @note If savings are below this threshold, the original file is copied to output
  */
 inline double min_savings_pct() {
   static double val = get_env_double("MIN_SAVINGS_PCT", 5.0);
@@ -162,6 +162,15 @@ inline int parallel_streams() {
  */
 inline int threads_per_stream() {
   static int val = get_env_int("THREADS_PER_STREAM", 0);
+  return val;
+}
+
+/**
+ * @brief Enable continuous watch mode for batch processing
+ * @note If true, monitors input directory for new files
+ */
+inline bool watch_mode() {
+  static bool val = (get_env_int("WATCH_MODE", 0) != 0);
   return val;
 }
 

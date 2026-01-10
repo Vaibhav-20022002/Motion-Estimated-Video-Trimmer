@@ -3,13 +3,13 @@
  * @brief Parallel video processing implementation
  *
  * @details Implements the BatchProcessor class for parallel video processing:
- * 
+ *
  *          - Thread pinning for CPU affinity
- * 
+ *
  *          - Work-stealing queue for load balancing
- * 
+ *
  *          - Stream-prefixed logging
- * 
+ *
  *          - Sequential summary output
  */
 
@@ -46,8 +46,9 @@ BatchProcessor::BatchProcessor(int num_streams) {
 }
 
 int BatchProcessor::process(const std::vector<std::string> &input_files,
-                            const std::string &output_dir) {
-  if (input_files.empty()) {
+                            const std::string &output_dir,
+                            const std::string &input_dir_arg) {
+  if (input_files.empty() && !Config::watch_mode()) {
     LOG_WARN("No input files to process");
     return 0;
   }
@@ -57,8 +58,21 @@ int BatchProcessor::process(const std::vector<std::string> &input_files,
 
   /// Populate work queue
   for (const auto &file : input_files) {
+    /// Mark as seen so monitor_directory doesn't re-queue it
+    processed_files_.insert(file);
+
+    std::string output_file =
+        (fs::path(output_dir) / fs::path(file).filename()).string();
+    if (fs::exists(output_file)) {
+      LOG_INFO("Skipping existing output: {}", output_file);
+      continue;
+    }
+
     work_queue_.push(file);
   }
+
+  /// Update total files to reflect actual work
+  total_files_ = static_cast<int>(work_queue_.size());
 
   /// Get available CPUs for pinning
   auto available_cpus = get_available_cpus();
@@ -142,6 +156,32 @@ int BatchProcessor::process(const std::vector<std::string> &input_files,
                          stream_cpu_sets[i], output_dir, &ffmpeg_queue);
   }
 
+  // **---- WATCH MODE ----**
+
+  if (Config::watch_mode()) {
+    /// In watch mode, we start a monitoring thread
+    std::string input_dir = input_dir_arg;
+
+    /// Fallback if not provided (should be provided by main.cpp)
+    if (input_dir.empty() && !input_files.empty()) {
+      input_dir = fs::path(input_files[0]).parent_path().string();
+    }
+    if (input_dir.empty())
+      input_dir = ".";
+
+    LOG_INFO("Starting Watch Mode on directory: {}", input_dir);
+
+    /// Populate initial processed files to avoid re-processing
+    /// We check if output file exists
+    for (const auto &f : input_files) {
+      processed_files_.insert(f);
+    }
+
+    std::thread monitor(&BatchProcessor::monitor_directory, this, input_dir,
+                        output_dir);
+    monitor.join(); //< Wait forever (or until stopped)
+  }
+
   /// Wait for all streams to complete scanning
   for (auto &stream : streams) {
     stream.join();
@@ -173,13 +213,95 @@ int BatchProcessor::process(const std::vector<std::string> &input_files,
 }
 
 bool BatchProcessor::get_next_file(std::string &file) {
-  std::lock_guard<std::mutex> lock(queue_mutex_);
-  if (work_queue_.empty()) {
-    return false;
+  std::unique_lock<std::mutex> lock(queue_mutex_);
+
+  if (Config::watch_mode()) {
+    /// In watch mode, wait for new files
+    cv_.wait(lock, [this] { return !work_queue_.empty() || stop_watch_; });
+
+    if (work_queue_.empty() && stop_watch_) {
+      return false;
+    }
+  } else {
+    /// In normal mode, return false if empty
+    if (work_queue_.empty()) {
+      return false;
+    }
   }
+
   file = work_queue_.front();
   work_queue_.pop();
   return true;
+}
+
+void BatchProcessor::monitor_directory(const std::string &input_dir,
+                                       const std::string &output_dir) {
+  int poll_count = 0;
+  while (!stop_watch_) {
+    try {
+      if (poll_count++ % 15 == 0) { //< Log every 30 seconds (15 * 2s)
+        LOG_INFO("[Watch] Monitoring directory: {} (Waiting for new files...)",
+                 input_dir);
+      }
+
+      for (const auto &entry : fs::directory_iterator(input_dir)) {
+        if (entry.is_regular_file()) {
+          std::string path = entry.path().string();
+          std::string ext = entry.path().extension().string();
+          std::transform(ext.begin(), ext.end(), ext.begin(),
+                         [](unsigned char c) { return std::tolower(c); });
+
+          if (ext == ".mp4" || ext == ".mkv" || ext == ".ts" || ext == ".mov" ||
+              ext == ".avi") {
+
+            /// Check if already processed
+            if (processed_files_.find(path) == processed_files_.end()) {
+
+              /// Check if output file already exists (persistence across
+              /// restarts)
+              std::string output_file =
+                  (fs::path(output_dir) / entry.path().filename()).string();
+              if (fs::exists(output_file)) {
+                LOG_INFO("[Watch] Skipping file (already processed): {}",
+                         entry.path().filename().string());
+                processed_files_.insert(path);
+                continue;
+              }
+
+              /// Check if file is stable (not being written to)
+              /// Simple check: wait 500ms and check size
+              auto size1 = fs::file_size(path);
+              std::this_thread::sleep_for(std::chrono::milliseconds(500));
+              auto size2 = fs::file_size(path);
+
+              if (size1 != size2) {
+                continue; // File is growing, skip for now
+              }
+
+              LOG_INFO("[Watch] New file detected: {}",
+                       entry.path().filename().string());
+
+              {
+                std::lock_guard<std::mutex> lock(queue_mutex_);
+                work_queue_.push(path);
+                processed_files_.insert(path);
+                total_files_++;
+              }
+              cv_.notify_one();
+            }
+          }
+        }
+      }
+    } catch (const std::exception &e) {
+      LOG_ERROR("[Watch] Error scanning directory: {}", e.what());
+    }
+
+    /// Poll interval
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+  }
+
+  /// Wake up workers to finish
+  cv_.notify_all();
 }
 
 void BatchProcessor::stream_worker(int stream_id,

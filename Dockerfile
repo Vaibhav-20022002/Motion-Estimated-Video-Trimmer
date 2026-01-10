@@ -57,7 +57,6 @@ RUN wget -q https://ffmpeg.org/releases/ffmpeg-8.0.tar.xz -O /tmp/ffmpeg.tar.xz 
         --enable-gray \
         --disable-debug \
         --enable-asm \
-        --enable-x86asm \
         --enable-pic --enable-shared \
         --disable-doc --disable-htmlpages --disable-manpages --disable-podpages \
         --extra-cflags="${FFMPEG_CFLAGS}" \

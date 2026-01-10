@@ -36,8 +36,10 @@
 #define MOTION_TRIM_BATCH_PROCESSOR_HPP
 
 #include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <queue>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -85,10 +87,12 @@ public:
    *
    * @param input_files List of input video file paths
    * @param output_dir Output directory for processed videos
+   * @param input_dir Input directory path (required for Watch Mode if list is
+   * empty)
    * @return Number of failures (0 = all succeeded)
    */
   int process(const std::vector<std::string> &input_files,
-              const std::string &output_dir);
+              const std::string &output_dir, const std::string &input_dir = "");
 
 private:
   int num_streams_;           //< Number of parallel streams
@@ -125,6 +129,21 @@ private:
    * @param wall_clock_sec Actual elapsed wall-clock time in seconds
    */
   void print_batch_summary(double wall_clock_sec);
+
+  // **---- WATCH MODE ----**
+
+  std::atomic<bool> stop_watch_{false}; //< Signal to stop watch mode
+  std::condition_variable cv_;          //< Wait for new files
+  std::set<std::string>
+      processed_files_; //< Track processed files to avoid duplicates
+
+  /**
+   * @brief Monitor directory for new files (Watch Mode).
+   * @param input_dir Directory to monitor
+   * @param output_dir Output directory (to check for existing files)
+   */
+  void monitor_directory(const std::string &input_dir,
+                         const std::string &output_dir);
 };
 
 } // namespace motion_trim
